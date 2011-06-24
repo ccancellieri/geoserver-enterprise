@@ -4,9 +4,6 @@
  */
 package org.geoserver.wms;
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -15,12 +12,11 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.DimensionInfo;
@@ -38,7 +34,6 @@ import org.geoserver.config.GeoServer;
 import org.geoserver.config.GeoServerInfo;
 import org.geoserver.config.JAIInfo;
 import org.geoserver.data.util.CoverageUtils;
-import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.wms.WMSInfo.WMSInterpolation;
 import org.geoserver.wms.WatermarkInfo.Position;
@@ -47,40 +42,37 @@ import org.geoserver.wms.map.RenderedImageMapResponse;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
+import org.geotools.data.QueryCapabilities;
 import org.geotools.data.ows.Layer;
 import org.geotools.data.ows.WMSCapabilities;
+import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.factory.GeoTools;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.feature.visitor.CalcResult;
 import org.geotools.feature.visitor.MaxVisitor;
 import org.geotools.feature.visitor.MinVisitor;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.filter.Filters;
-import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.referencing.CRS;
-import org.geotools.referencing.CRS.AxisOrder;
+import org.geotools.filter.SortByImpl;
+import org.geotools.resources.coverage.FeatureUtilities;
 import org.geotools.styling.Style;
 import org.geotools.util.Converters;
-import org.geotools.util.Range;
+import org.geotools.util.DateRange;
+import org.geotools.util.NumberRange;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
-import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
+import org.opengis.filter.sort.SortBy;
+import org.opengis.filter.sort.SortOrder;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
-import org.opengis.parameter.ParameterDescriptor;
-import org.opengis.parameter.ParameterValue;
 import org.opengis.parameter.ParameterValueGroup;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-
-import com.vividsolutions.jts.geom.Coordinate;
 
 /**
  * A facade providing access to the WMS configuration details
@@ -101,22 +93,6 @@ public class WMS implements ApplicationContextAware {
 
     public static final int PNG_COMPRESSION_DEFAULT = 25;
 
-    public static final String MAX_ALLOWED_FRAMES = "maxAllowedFrames";
-
-    public static final int MAX_ALLOWED_FRAMES_DEFAULT = Integer.MAX_VALUE;
-    
-    public static final String MAX_RENDERING_TIME = "maxAnimatorRenderingTime";
-    
-    public static final String MAX_RENDERING_SIZE = "maxRenderingSize";
-    
-    public static final String FRAMES_DELAY = "framesDelay";
-
-    public static final int FRAMES_DELAY_DEFAULT = 1000;
-     
-    public static final String LOOP_CONTINUOUSLY = "loopContinuously";
-
-    public static final Boolean LOOP_CONTINUOUSLY_DEFAULT = Boolean.FALSE;
-    
     static final Logger LOGGER = Logging.getLogger(WMS.class);
 
     public static final String WEB_CONTAINER_KEY = "WMS";
@@ -172,11 +148,6 @@ public class WMS implements ApplicationContextAware {
     public static final String KML_KMSCORE = "kmlKmscore";
 
     public static final int KML_KMSCORE_DEFAULT = 40;
-
-    /**
-     * the WMS Animator animatorExecutor service
-     */
-    private ExecutorService animatorExecutorService;
     
     private static final FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
@@ -188,7 +159,7 @@ public class WMS implements ApplicationContextAware {
         this.geoserver = geoserver;
     }
 
-    public Catalog getCatalog() {
+    private Catalog getCatalog() {
         return geoserver.getCatalog();
     }
 
@@ -215,20 +186,19 @@ public class WMS implements ApplicationContextAware {
     }
 
     /**
-     * /** Returns a supported version according to the version negotiation rules in section 6.2.4
-     * of the WMS 1.3.0 spec.
+     * /**
+     * Returns a supported version according to the version negotiation rules in section 6.2.4 of
+     * the WMS 1.3.0 spec.
      * <p>
-     * Calls through to {@link #negotiateVersion(Version)}.
+     * Calls through to {@link #negotiateVersion(Version)}. 
      * </p>
-     * 
-     * @param requestedVersion
-     *            The version, may be bull.
+     * @param requestedVersion The version, may be bull.
      * 
      */
     public static Version negotiateVersion(final String requestedVersion) {
         return negotiateVersion(requestedVersion != null ? new Version(requestedVersion) : null);
     }
-
+    
     /**
      * Returns a supported version according to the version negotiation rules in section 6.2.4 of
      * the WMS 1.3.0 spec.
@@ -279,20 +249,6 @@ public class WMS implements ApplicationContextAware {
         return this.geoserver;
     }
 
-    /**
-     * @param animatorExecutorService the animatorExecutorService to set
-     */
-    public void setAnimatorExecutorService(ExecutorService animatorExecutorService) {
-        this.animatorExecutorService = animatorExecutorService;
-    }
-
-    /**
-     * @return the animatorExecutorService
-     */
-    public ExecutorService getAnimatorExecutorService() {
-        return animatorExecutorService;
-    }
-
     public WMSInterpolation getInterpolation() {
         return getServiceInfo().getInterpolation();
     }
@@ -315,13 +271,16 @@ public class WMS implements ApplicationContextAware {
 
     public Charset getCharSet() {
         GeoServer geoServer2 = getGeoServer();
-        String charset = geoServer2.getSettings().getCharset();
+        GeoServerInfo global = geoServer2.getGlobal();
+        String charset = global.getCharset();
         return Charset.forName(charset);
     }
 
     public String getProxyBaseUrl() {
         GeoServer geoServer = getGeoServer();
-        return geoServer.getSettings().getProxyBaseUrl();
+        GeoServerInfo global = geoServer.getGlobal();
+        String proxyBaseUrl = global.getProxyBaseUrl();
+        return proxyBaseUrl;
     }
 
     public long getUpdateSequence() {
@@ -360,14 +319,14 @@ public class WMS implements ApplicationContextAware {
         Catalog catalog = getCatalog();
         CoverageInfo resource = catalog.getResourceByName(name, CoverageInfo.class);
         return resource;
-    }
+    }    
 
     public WMSLayerInfo getWMSLayerInfo(final Name name) {
         Catalog catalog = getCatalog();
         WMSLayerInfo resource = catalog.getResourceByName(name, WMSLayerInfo.class);
         return resource;
     }
-
+    
     public ResourceInfo getResourceInfo(final Name name) {
         Catalog catalog = getCatalog();
         ResourceInfo resource = catalog.getResourceByName(name, ResourceInfo.class);
@@ -464,26 +423,6 @@ public class WMS implements ApplicationContextAware {
                 JPEG_COMPRESSION_DEFAULT);
     }
 
-    public int getMaxAllowedFrames() {
-    	return getMetadataValue(MAX_ALLOWED_FRAMES, MAX_ALLOWED_FRAMES_DEFAULT, Integer.class);
-    }
-    
-    public Long getMaxAnimatorRenderingTime() {
-        return getMetadataValue(MAX_RENDERING_TIME, null, Long.class);
-    }
-    
-    public Long getMaxRenderingSize() {
-        return getMetadataValue( MAX_RENDERING_SIZE, null, Long.class);
-    }
-
-    public Integer getFramesDelay() {
-        return getMetadataValue(FRAMES_DELAY, FRAMES_DELAY_DEFAULT, Integer.class);
-    }
-    
-    public Boolean getLoopContinuously() {
-       return getMetadataValue(LOOP_CONTINUOUSLY, LOOP_CONTINUOUSLY_DEFAULT, Boolean.class);
-    }
-
     int getMetadataPercentage(MetadataMap metadata, String key, int defaultValue) {
         Integer parsedValue = Converters.convert(metadata.get(key), Integer.class);
         if (parsedValue == null)
@@ -498,22 +437,9 @@ public class WMS implements ApplicationContextAware {
         return value;
     }
 
-    <T> T getMetadataValue(String key, T defaultValue, Class<T> clazz) {
-        if (getServiceInfo() == null) {
-            return defaultValue;
-        }
-
-        MetadataMap metadata = getServiceInfo().getMetadata();
-
-    	T parsedValue =  Converters.convert(metadata.get(key), clazz);
-    	if (parsedValue == null)
-            return defaultValue;
-    	
-    	return parsedValue;
-    }
-    
     public int getNumDecimals() {
-        return getGeoServer().getSettings().getNumDecimals();
+        GeoServerInfo global = getGeoServer().getGlobal();
+        return global.getNumDecimals();
     }
 
     public String getNameSpacePrefix(final String nsUri) {
@@ -566,12 +492,12 @@ public class WMS implements ApplicationContextAware {
     }
 
     /**
-     * Returns all available map output formats.
+     * Returns all available map output formats. 
      */
     public Collection<GetMapOutputFormat> getAvailableMapFormats() {
         return WMSExtensions.findMapProducers(applicationContext);
     }
-
+    
     /**
      * Grabs the list of available MIME-Types for the GetMap operation from the set of
      * {@link GetMapOutputFormat}s registered in the application context.
@@ -612,7 +538,7 @@ public class WMS implements ApplicationContextAware {
     public List<ExtendedCapabilitiesProvider> getAvailableExtendedCapabilitiesProviders() {
         return WMSExtensions.findExtendedCapabilitiesProviders(applicationContext);
     }
-
+    
     /**
      * @see org.springframework.context.ApplicationContextAware#setApplicationContext(org.springframework.context.ApplicationContext)
      */
@@ -684,14 +610,12 @@ public class WMS implements ApplicationContextAware {
     }
 
     /**
-     * Returns a version object for the specified version string optionally returning null when the
-     * version string does not match one of the available WMS versions.
+     * Returns a version object for the specified version string optionally returning null
+     * when the version string does not match one of the available WMS versions.
      * 
-     * @param version
-     *            The version string.
-     * @param exact
-     *            If set to false, a version object will always be returned. If set to true only a
-     *            version matching on of the available wms versions will be returned.
+     * @param version The version string.
+     * @param exact If set to false, a version object will always be returned. If set to true 
+     *   only a version matching on of the available wms versions will be returned.
      * @return
      */
     public static Version version(String version, boolean exact) {
@@ -708,13 +632,13 @@ public class WMS implements ApplicationContextAware {
     }
 
     /**
-     * Transforms a crs identifier to its internal representation based on the specified WMS
-     * version.
+     * Transforms a crs identifier to its internal representation based on the specified 
+     * WMS version.
      * <p>
-     * In version 1.3 of WMS geographic coordinate systems are to be ordered y/x or
-     * latitude/longitude. The only possible way to represent this internally is to use the explicit
-     * epsg namespace "urn:x-ogc:def:crs:EPSG:". This method essentially replaces the traditional
-     * "EPSG:" namespace with the explicit.
+     * In version 1.3 of WMS geographic coordinate systems are to be ordered y/x or 
+     * latitude/longitude. The only possible way to represent this internally is to use the 
+     * explicit epsg namespace "urn:x-ogc:def:crs:EPSG:". This method essentially replaces the 
+     * traditional "EPSG:" namespace with the explicit. 
      * </p>
      */
     public static String toInternalSRS(String srs, Version version) {
@@ -723,7 +647,7 @@ public class WMS implements ApplicationContextAware {
                 srs = srs.toUpperCase().replace("EPSG:", "urn:x-ogc:def:crs:EPSG:");
             }
         }
-
+        
         return srs;
     }
 
@@ -746,28 +670,12 @@ public class WMS implements ApplicationContextAware {
             }
 
             return layer.isQueryable();
-
+            
         } catch (IOException e) {
             LOGGER.log(Level.INFO,
                     "Failed to determin if the layer is queryable, assuming it's not", e);
             return false;
         }
-    }
-
-    public Integer getCascadedHopCount(LayerInfo layer) {
-        if (!(layer.getResource() instanceof WMSLayerInfo)) {
-            return null;
-        }
-        WMSLayerInfo wmsLayerInfo = (WMSLayerInfo) layer.getResource();
-        Layer wmsLayer;
-        int cascaded = 1;
-        try {
-            wmsLayer = wmsLayerInfo.getWMSLayer(null);
-            cascaded = 1 + wmsLayer.getCascaded();
-        } catch (IOException e) {
-            LOGGER.log(Level.INFO, "Unable to determina WMSLayer cascaded hop count", e);
-        }
-        return cascaded;
     }
 
     public boolean isQueryable(LayerGroupInfo layerGroup) {
@@ -778,11 +686,10 @@ public class WMS implements ApplicationContextAware {
         }
         return true;
     }
-
+    
     /**
      * Returns the read parameters for the specified layer, merging some well known request
-     * parameters into the read parameters if possible
-     * 
+     * parameters into the read parameters if possible 
      * @param request
      * @param mapLayerInfo
      * @param layerFilter
@@ -791,7 +698,7 @@ public class WMS implements ApplicationContextAware {
      */
     public GeneralParameterValue[] getWMSReadParameters(final GetMapRequest request,
             final MapLayerInfo mapLayerInfo, final Filter layerFilter, final List<Object> times,
-            final List<Object> elevations, final AbstractGridCoverage2DReader reader,
+            final List<Object> elevations, final AbstractGridCoverage2DReader reader, 
             boolean readGeom) throws IOException {
         // setup the scene
         final ParameterValueGroup readParametersDescriptor = reader.getFormat().getReadParameters();
@@ -800,126 +707,52 @@ public class WMS implements ApplicationContextAware {
         GeneralParameterValue[] readParameters = CoverageUtils.getParameters(
                 readParametersDescriptor, coverage.getParameters(), readGeom);
         ReaderDimensionsAccessor dimensions = new ReaderDimensionsAccessor(reader);
+
         // pass down time
         final DimensionInfo timeInfo = metadata.get(ResourceInfo.TIME, DimensionInfo.class);
-        // add the descriptors for custom dimensions 
-        final List<GeneralParameterDescriptor> parameterDescriptors = 
-                new ArrayList<GeneralParameterDescriptor>(readParametersDescriptor.getDescriptor().descriptors());
-        Set<ParameterDescriptor<List>> dynamicParameters = reader.getDynamicParameters();
-        parameterDescriptors.addAll(dynamicParameters);
+        final List<GeneralParameterDescriptor> parameterDescriptors = readParametersDescriptor
+                .getDescriptor().descriptors();
         if (timeInfo != null && timeInfo.isEnabled()) {
             // handle "current"
             List<Object> fixedTimes = new ArrayList<Object>(times);
             for (int i = 0; i < fixedTimes.size(); i++) {
-                if (fixedTimes.get(i) == null) {
+                if(fixedTimes.get(i) == null) {
                     fixedTimes.set(i, getCurrentTime(coverage, dimensions));
                 }
             }
             // pass down the parameters
-            readParameters = CoverageUtils.mergeParameter(parameterDescriptors, readParameters,
-                    fixedTimes, "TIME", "Time");
+            readParameters = CoverageUtils.mergeParameter(parameterDescriptors, 
+                    readParameters, fixedTimes, "TIME", "Time");
         }
 
         // pass down elevation
-        final DimensionInfo elevationInfo = metadata.get(ResourceInfo.ELEVATION,
-                DimensionInfo.class);
+        final DimensionInfo elevationInfo = metadata.get(ResourceInfo.ELEVATION, DimensionInfo.class);
         if (elevationInfo != null && elevationInfo.isEnabled()) {
             // handle "current"
             List<Object> fixedElevations = new ArrayList<Object>(elevations);
             for (int i = 0; i < fixedElevations.size(); i++) {
-                if (fixedElevations.get(i) == null) {
+                if(fixedElevations.get(i) == null) {
                     fixedElevations.set(i, getDefaultElevation(coverage, dimensions));
                 }
             }
-            readParameters = CoverageUtils.mergeParameter(parameterDescriptors, readParameters,
-                    fixedElevations, "ELEVATION", "Elevation");
-        }
-
-        if (layerFilter != null && readParameters != null) {
-            // test for default [empty is replaced with INCLUDE filter] ]filter
-            for (int i = 0; i < readParameters.length; i++) {
-
-                GeneralParameterValue param = readParameters[i];
-                GeneralParameterDescriptor pd = param.getDescriptor();
-
-                if (pd.getName().getCode().equalsIgnoreCase("FILTER")) {
-                    final ParameterValue pv = (ParameterValue) pd.createValue();
-                    // if something different from the default INCLUDE filter is specified
-                    if (layerFilter != Filter.INCLUDE) {
-                        // override the default filter
-                        pv.setValue(layerFilter);
-                        readParameters[i] = pv;
-                    }
-                    break;
-                }
-            }
+            readParameters = CoverageUtils.mergeParameter(parameterDescriptors, 
+                    readParameters, fixedElevations, "ELEVATION", "Elevation");
         }
         
-        // custom dimensions
-        final Map<String, String> rawKvpMap = request.getRawKvp();
-        List<String> customDomains = new ArrayList(dimensions.getCustomDomains());
-        if (rawKvpMap != null) {
-            for (Map.Entry<String, String> kvp : rawKvpMap.entrySet()) {
-                String name = kvp.getKey();
-                if (name.regionMatches(true, 0, "dim_", 0, 4)) {
-                    name = name.substring(4);
-                    name = caseInsensitiveLookup(customDomains, name);
-                    if(name != null) {
-                        // remove it so that we don't have to set the default value
-                        customDomains.remove(name);
-                        final DimensionInfo customInfo = metadata.get(ResourceInfo.CUSTOM_DIMENSION_PREFIX + name,
-                                DimensionInfo.class);
-                        if (dimensions.hasDomain(name) && customInfo != null && customInfo.isEnabled()) {
-                            final ArrayList<String> val = new ArrayList<String>(1);
-                            if(kvp.getValue().indexOf(",")>0){
-                                String[] elements = kvp.getValue().split(",");
-                                val.addAll(Arrays.asList(elements));
-                            }else{
-                                val.add(kvp.getValue());
-                            }
-                            readParameters = CoverageUtils.mergeParameter(
-                                parameterDescriptors, readParameters, val, name);
-                        }
-                    }
-                }
-            }
+        if(layerFilter != null) {
+            readParameters = CoverageUtils.mergeParameter(parameterDescriptors, 
+                    readParameters, layerFilter, "FILTER", "Filter");
         }
-        
-        // see if we have any custom domain for which we have to set the default value
-        if(!customDomains.isEmpty()) {
-            for (String name : customDomains) {
-                final DimensionInfo customInfo = metadata.get(ResourceInfo.CUSTOM_DIMENSION_PREFIX + name,
-                        DimensionInfo.class);
-                if (customInfo != null && customInfo.isEnabled()) {
-                    final ArrayList<String> val = new ArrayList<String>(1);
-                    val.add(dimensions.getCustomDomainDefaultValue(name));
-                    readParameters = CoverageUtils.mergeParameter(
-                        parameterDescriptors, readParameters, val, name);
-                }
-            }
-        }
-
         return readParameters;
-    }
-
-    private String caseInsensitiveLookup(List<String> names, String name) {
-        for (String s : names) {
-            if(name.equalsIgnoreCase(s)) {
-                return s;
-            }
-        }
-        
-        return null;
     }
 
     public Collection<RenderedImageMapResponse> getAvailableMapResponses() {
         return WMSExtensions.findMapResponses(applicationContext);
     }
-
+    
     /**
      * Returns the list of time values for the specified typeInfo based on the dimension
-     * representation: all values for {@link DimensionPresentation#LIST}, otherwise min and max
-     * 
+     * representation: all values for {@link DimensionPresentation#LIST}, otherwise min and max 
      * @param typeInfo
      * @return
      * @throws IOException
@@ -944,26 +777,20 @@ public class WMS implements ApplicationContextAware {
             if (values.size() <= 0) {
                 result = null;
             } else {
-                // we might get null values out of the visitor, strip them
-                values.remove(null);
                 result.addAll(values);
             }
         } else {
             final MinVisitor min = new MinVisitor(time.getAttribute());
             collection.accepts(min, null);
-            CalcResult minResult = min.getResult();
-            // check calcresult first to avoid potential IllegalStateException if no features are in collection
-            if (minResult != CalcResult.NULL_RESULT) {
-                result.add((Date) min.getMin());
-                final MaxVisitor max = new MaxVisitor(time.getAttribute());
-                collection.accepts(max, null);
-                result.add((Date) max.getMax());
-            }
+            result.add((Date) min.getMin());
+            final MaxVisitor max = new MaxVisitor(time.getAttribute());
+            collection.accepts(max, null);
+            result.add((Date) max.getMax());
         }
 
         return result;
     }
-
+    
     /**
      * Returns the list of elevation values for the specified typeInfo based on the dimension
      * representation: all values for {@link DimensionPresentation#LIST}, otherwise min and max
@@ -1002,22 +829,17 @@ public class WMS implements ApplicationContextAware {
         } else {
             final MinVisitor min = new MinVisitor(elevation.getAttribute());
             collection.accepts(min, null);
-            // check calcresult first to avoid potential IllegalStateException if no features are in collection
-            CalcResult calcResult = min.getResult();
-            if (calcResult != CalcResult.NULL_RESULT) {
-                result.add(((Number) min.getMin()).doubleValue());
-                final MaxVisitor max = new MaxVisitor(elevation.getAttribute());
-                collection.accepts(max, null);
-                result.add(((Number) max.getMax()).doubleValue());
-            }
+            result.add(((Number) min.getMin()).doubleValue());
+            final MaxVisitor max = new MaxVisitor(elevation.getAttribute());
+            collection.accepts(max, null);
+            result.add(((Number) max.getMax()).doubleValue());
         }
 
         return result;
     }
-
+    
     /**
-     * Returns the current time for the specified type info
-     * 
+     * Returns the current time for the specified type info 
      * @param typeInfo
      * @return
      * @throws IOException
@@ -1034,29 +856,25 @@ public class WMS implements ApplicationContextAware {
         FeatureCollection collection = getDimensionCollection(typeInfo, time);
         final MaxVisitor max = new MaxVisitor(time.getAttribute());
         collection.accepts(max, null);
-        if (max.getResult() != CalcResult.NULL_RESULT) {
-            return (Date) max.getMax();
-        } else {
-            return null;
-        }
+        return (Date) max.getMax();
     }
-
+    
     /**
-     * Returns the current time for the specified coverage
+     * Returns the current time for the specified coverage 
      */
-    Date getCurrentTime(CoverageInfo coverage, ReaderDimensionsAccessor dimensions)
-            throws IOException {
+    Date getCurrentTime(CoverageInfo coverage, ReaderDimensionsAccessor dimensions) throws IOException {
         // check the time metadata
         DimensionInfo time = coverage.getMetadata().get(ResourceInfo.TIME, DimensionInfo.class);
         String name = coverage.getPrefixedName();
         if (time == null || !time.isEnabled()) {
-            throw new ServiceException("Layer " + name + " does not have time support enabled");
+            throw new ServiceException("Layer " + name
+                    + " does not have time support enabled");
         }
 
         // get and parse the current time
         return dimensions.getMaxTime();
     }
-
+    
     /**
      * Returns the default elevation (the minimum one)
      * 
@@ -1075,21 +893,20 @@ public class WMS implements ApplicationContextAware {
         FeatureCollection collection = getDimensionCollection(typeInfo, elevation);
         final MinVisitor min = new MinVisitor(elevation.getAttribute());
         collection.accepts(min, null);
-        if (min.getResult() == CalcResult.NULL_RESULT) {
+        if (min.getMin() == null) {
             return null;
         } else {
             return ((Number) min.getMin()).doubleValue();
         }
     }
-
+    
     /**
      * Returns the default elevation (the minimum one)
      * 
      * @param typeInfo
      * @return
      */
-    Double getDefaultElevation(CoverageInfo coverage, ReaderDimensionsAccessor dimensions)
-            throws IOException {
+    Double getDefaultElevation(CoverageInfo coverage, ReaderDimensionsAccessor dimensions) throws IOException {
         // check the time metadata
         DimensionInfo elevation = coverage.getMetadata().get(ResourceInfo.ELEVATION,
                 DimensionInfo.class);
@@ -1107,11 +924,11 @@ public class WMS implements ApplicationContextAware {
      * native capabilities allow for it
      * 
      * @param typeInfo
-     * @param dimension
+     * @param time
      * @return
      * @throws IOException
      */
-    FeatureCollection getDimensionCollection(FeatureTypeInfo typeInfo, DimensionInfo dimension)
+    FeatureCollection getDimensionCollection(FeatureTypeInfo typeInfo, DimensionInfo time)
             throws IOException {
         // grab the feature source
         FeatureSource source = null;
@@ -1123,51 +940,21 @@ public class WMS implements ApplicationContextAware {
                             + typeInfo.getPrefixedName(), e);
         }
 
-        // build query to grab the dimension values
+        // build query to grab the time info
         final Query dimQuery = new Query(source.getSchema().getName().getLocalPart());
-        dimQuery.setPropertyNames(Arrays.asList(dimension.getAttribute()));
-        return source.getFeatures(dimQuery);
-    }
-    
-    /**
-     * Build a filter for a single value based on an attribute and optional
-     * endAttribute. The value is either a Range or object that can be used as
-     * a literal (Date,Number).
-     * @param value
-     * @param attribute
-     * @param endAttribute
-     * @return 
-     */
-    Filter buildDimensionFilter(Object value, PropertyName attribute, PropertyName endAttribute) {
-        Filter filter;
-        if (value == null) {
-            filter = Filter.INCLUDE;
-        } else if (value instanceof Range) {
-            Range range = (Range) value;
-            if (endAttribute == null) {
-                filter = ff.between(attribute, ff.literal(range.getMinValue()),
-                         ff.literal(range.getMaxValue()));
-            } else {
-                // Range intersects valid range of feature
-                // @todo adding another option to dimensionInfo allows contains, versus intersects
-                Literal qlower = ff.literal(range.getMinValue());
-                Literal qupper = ff.literal(range.getMaxValue());
-                Filter lower = ff.between(attribute, qlower, qupper);
-                Filter upper = ff.between(endAttribute, qlower, qupper);
-                return ff.or(lower, upper);
-            }
-        } else {
-            // Single element is equal to
-            if (endAttribute == null) {
-                filter = ff.equal(attribute, ff.literal(value), true);
-            } else {
-                // Single element is contained by valid range of feature
-                Filter lower = ff.greaterOrEqual(ff.literal(value), attribute);
-                Filter upper = ff.lessOrEqual(ff.literal(value), endAttribute);
-                filter = ff.and(lower, upper);
-            }
+        final SortBy[] sortBy = new SortBy[] { new SortByImpl(
+                FeatureUtilities.DEFAULT_FILTER_FACTORY.property(time.getAttribute()),
+                SortOrder.ASCENDING) };
+
+        // are able to sort at the store level?
+        // if the store does not support sorting we have to do it by hand
+        final QueryCapabilities queryCapabilities = source.getQueryCapabilities();
+        if (queryCapabilities.supportsSorting(sortBy)) {
+            dimQuery.setSortBy(sortBy);
         }
-        return filter;
+        dimQuery.setPropertyNames(Arrays.asList(time.getAttribute()));
+        FeatureCollection collection = (SimpleFeatureCollection) source.getFeatures(dimQuery);
+        return collection;
     }
 
     /**
@@ -1185,21 +972,28 @@ public class WMS implements ApplicationContextAware {
         DimensionInfo timeInfo = typeInfo.getMetadata().get(ResourceInfo.TIME, DimensionInfo.class);
         DimensionInfo elevationInfo = typeInfo.getMetadata().get(ResourceInfo.ELEVATION,
                 DimensionInfo.class);
-        
+
         // handle time support
         Filter result = null;
         if (timeInfo != null && timeInfo.isEnabled() && times != null) {
             final List<Filter> timeFilters = new ArrayList<Filter>();
-            final PropertyName attribute = ff.property(timeInfo.getAttribute());
-            final PropertyName endAttribute = timeInfo.getEndAttribute() == null ? null :
-                ff.property(timeInfo.getEndAttribute());
 
             for (Object datetime : times) {
                 if (datetime == null) {
                     // this is "current"
                     datetime = getCurrentTime(typeInfo);
                 }
-                timeFilters.add(buildDimensionFilter(datetime, attribute, endAttribute));
+                PropertyName attribute = ff.property(timeInfo.getAttribute());
+                if (datetime instanceof Date) {
+                    // Single element
+                    timeFilters.add(ff.equal(attribute, ff.literal(datetime), true));
+                } else {
+                    // Range
+                    // convert to range and create a correct range filter
+                    final DateRange range = (DateRange) datetime;
+                    timeFilters.add(ff.between(attribute, ff.literal(range.getMinValue()),
+                            ff.literal(range.getMaxValue())));
+                }
             }
             final int sizeTime = timeFilters.size();
             if (sizeTime > 1) {
@@ -1212,15 +1006,23 @@ public class WMS implements ApplicationContextAware {
         // handle elevation support
         if (elevationInfo != null && elevationInfo.isEnabled() && elevations != null) {
             final List<Filter> elevationFilters = new ArrayList<Filter>();
-            final PropertyName attribute = ff.property(elevationInfo.getAttribute());
-            final PropertyName endAttribute = elevationInfo.getEndAttribute() == null ? null :
-                ff.property(elevationInfo.getEndAttribute());
+
             for (Object elevation : elevations) {
                 if (elevation == null) {
                     // this is "current"
                     elevation = getDefaultElevation(typeInfo);
                 }
-                elevationFilters.add(buildDimensionFilter(elevation, attribute, endAttribute));
+                PropertyName attribute = ff.property(elevationInfo.getAttribute());
+                if (elevation instanceof Double) {
+                    // Single element
+                    elevationFilters.add(ff.equal(attribute, ff.literal(elevation), true));
+                } else {
+                    // Range
+                    // convert to range and create a correct range filter
+                    final NumberRange range = (NumberRange) elevation;
+                    elevationFilters.add(ff.between(attribute, ff.literal(range.getMinValue()),
+                            ff.literal(range.getMaxValue())));
+                }
             }
             final int size = elevationFilters.size();
             Filter summary = null;
@@ -1239,81 +1041,4 @@ public class WMS implements ApplicationContextAware {
         return result;
     }
 
-    /**
-     * Converts a coordinate expressed on the device space back to real world coordinates. Stolen
-     * from LiteRenderer but without the need of a Graphics object
-     * 
-     * @param x
-     *            horizontal coordinate on device space
-     * @param y
-     *            vertical coordinate on device space
-     * @param map
-     *            The map extent
-     * @param width
-     *            image width
-     * @param height
-     *            image height
-     * 
-     * @return The correspondent real world coordinate
-     * 
-     * @throws RuntimeException
-     */
-    public static Coordinate pixelToWorld(double x, double y, ReferencedEnvelope map, double width, double height) {
-        // set up the affine transform and calculate scale values
-        AffineTransform at = worldToScreenTransform(map, width, height);
-    
-        Point2D result = null;
-    
-        try {
-            result = at.inverseTransform(new java.awt.geom.Point2D.Double(x, y),
-                    new java.awt.geom.Point2D.Double());
-        } catch (NoninvertibleTransformException e) {
-            throw new RuntimeException(e);
-        }
-    
-        Coordinate c = new Coordinate(result.getX(), result.getY());
-    
-        return c;
-    }
-
-    /**
-     * Sets up the affine transform. Stolen from liteRenderer code.
-     * 
-     * @param mapExtent
-     *            the map extent
-     * @param width
-     *            the screen size
-     * @param height
-     * 
-     * @return a transform that maps from real world coordinates to the screen
-     */
-    public static AffineTransform worldToScreenTransform(ReferencedEnvelope mapExtent, double width, double height) {
-        
-        //the transformation depends on an x/y ordering, if we have a lat/lon crs swap it
-        CoordinateReferenceSystem crs = mapExtent.getCoordinateReferenceSystem();
-        boolean swap = crs != null && CRS.getAxisOrder(crs) == AxisOrder.NORTH_EAST;
-        if (swap) {
-            mapExtent = new ReferencedEnvelope(mapExtent.getMinY(), mapExtent.getMaxY(), 
-                mapExtent.getMinX(), mapExtent.getMaxX(), null);
-        }
-        
-        double scaleX = (double) width / mapExtent.getWidth();
-        double scaleY = (double) height / mapExtent.getHeight();
-    
-        double tx = -mapExtent.getMinX() * scaleX;
-        double ty = (mapExtent.getMinY() * scaleY) + height;
-    
-        AffineTransform at = new AffineTransform(scaleX, 0.0d, 0.0d, -scaleY, tx, ty);
-    
-        //if we swapped concatenate a transform that swaps back
-        if (swap) {
-            at.concatenate(new AffineTransform(0, 1, 1, 0, 0, 0));
-        }
-    
-        return at;
-    }
-
-    public static WMS get() {
-        return GeoServerExtensions.bean(WMS.class);
-    }
 }
