@@ -403,6 +403,33 @@ public class DefaultWebCoverageService100 implements WebCoverageService100 {
                     AxisSubsetType axis = (AxisSubsetType)axisSubset.get(i);
                     String axisName = axis.getName();
                     if (axisName.regionMatches(true, 0, "dim_", 0, 4)) {
+                        Object dimInfo = meta.getMetadata().get(axisName);
+                        if (dimInfo instanceof DimensionInfo && dimensions.hasDomain(axisName)) {
+                            int valueCount = axis.getSingleValue().size();
+                            if (valueCount > 0) {
+                                List<String> dimValues = new ArrayList<String>(valueCount);
+                                for (int s = 0; s < valueCount; s++) {
+                                    dimValues.add(((TypedLiteralType) axis
+                                            .getSingleValue().get(s)).getValue());
+                                }
+                                readParameters = CoverageUtils.mergeParameter(parameterDescriptors,
+                                        readParameters, dimValues, axisName.toUpperCase());
+                            }
+                        }
+                    }
+                }    
+            }
+            
+            // 
+            // CUSTOM DIMENSION SUPPORT
+            //
+            if (request.getRangeSubset() != null) {
+                EList<?> axisSubset = request.getRangeSubset().getAxisSubset();
+                final int asCount = axisSubset == null ? 0 : axisSubset.size();
+                for (int i = 0; i < asCount; i++) {
+                    AxisSubsetType axis = (AxisSubsetType)axisSubset.get(i);
+                    String axisName = axis.getName();
+                    if (axisName.regionMatches(true, 0, "dim_", 0, 4)) {
                         Object dimInfo = meta.getMetadata().get(ResourceInfo.CUSTOM_DIMENSION_PREFIX + axisName);
                         axisName = axisName.toUpperCase(); // using uppercase with imagemosaic
                         if (dimInfo instanceof DimensionInfo && dimensions.hasDomain(axisName)) {

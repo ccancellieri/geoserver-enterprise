@@ -51,10 +51,15 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         
         // add org.geoserver.catalog.testReader.CustomFormat coverage
         String styleName = "temperature";
-        dataDirectory.addStyle(styleName, MockData.class.getResource("../temperature.sld"));
+        dataDirectory.addStyle(styleName, WMSTestSupport.class.getResource("temperature.sld"));
         
-        dataDirectory.addCoverageFromZip(WATTEMP, MockData.class.getResource("watertempDynamicDims.zip"), "zip", styleName);
+        dataDirectory.addCoverageFromZip(WATTEMP, MockData.class.getResource("watertempDynamicDims.zip"), null, styleName);
         
+    }
+    
+    @Override
+    protected void oneTimeSetUp() throws Exception {
+            super.oneTimeSetUp();
         
         GeoServerInfo global = getGeoServer().getGlobal();
         global.getSettings().setProxyBaseUrl("src/test/resources/geoserver");
