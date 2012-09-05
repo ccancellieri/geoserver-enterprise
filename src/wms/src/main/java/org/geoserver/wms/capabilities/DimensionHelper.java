@@ -382,6 +382,11 @@ abstract class DimensionHelper {
             elevDim.addAttribute("", "unitSymbol", "unitSymbol", "", "m");
             element("Dimension", elevationMetadata, elevDim);
         }
+            // For now add empty units attribute so that validation succeeds.
+            // Code to make this value configurable would conflict with the
+            // pending elevation units patch.
+            dim.addAttribute("", "units", "units", "", "");
+            
     }
 
     static class ISO8601Formatter {
