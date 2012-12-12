@@ -187,7 +187,7 @@ public class WMS implements ApplicationContextAware {
         this.geoserver = geoserver;
     }
 
-    private Catalog getCatalog() {
+    public Catalog getCatalog() {
         return geoserver.getCatalog();
     }
 
@@ -855,13 +855,17 @@ public class WMS implements ApplicationContextAware {
         final Map<String, String> rawKvpMap = request.getRawKvp();
         if (rawKvpMap != null) {
             for (Map.Entry<String, String> kvp : rawKvpMap.entrySet()) {
-                final String name = kvp.getKey();
-                if (name.regionMatches(true, 0, "dim_", 0, 4) &&
-                        dimensions.hasDomain(name)) {
-                    final ArrayList<String> val = new ArrayList<String>(1);
-                    val.add(kvp.getValue());
-                    readParameters = CoverageUtils.mergeParameter(
+                String name = kvp.getKey();
+                if (name.regionMatches(true, 0, "dim_", 0, 4)) {
+                    name = name.substring(4);
+                    final DimensionInfo customInfo = metadata.get(ResourceInfo.CUSTOM_DIMENSION_PREFIX + name,
+                            DimensionInfo.class);
+                    if (dimensions.hasDomain(name) && customInfo != null && customInfo.isEnabled()) {
+                        final ArrayList<String> val = new ArrayList<String>(1);
+                        val.add(kvp.getValue());
+                        readParameters = CoverageUtils.mergeParameter(
                             parameterDescriptors, readParameters, val, name);
+                    }
                 }
             }
         }
