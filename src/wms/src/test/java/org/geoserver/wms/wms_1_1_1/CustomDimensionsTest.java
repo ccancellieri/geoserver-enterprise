@@ -152,6 +152,19 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertFalse(isEmpty(image));
     }
     
+    @Test
+    public void testGetMapCaseInsesitiveKey() throws Exception {
+        setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
+        
+        // check that we get data when requesting a correct value for custom dimension
+        MockHttpServletResponse response = getAsServletResponse("wms?bbox=" + BBOX + "&styles="
+                + "&layers=" + LAYERS + "&Format=image/png" + "&request=GetMap" + "&width=550"
+                + "&height=250" + "&srs=EPSG:4326" + "&VALIDATESCHEMA=true"
+                + "&DIM_" + DIMENSION_NAME.toLowerCase() + "=CustomDimValueB");
+        BufferedImage image = ImageIO.read(getBinaryInputStream(response));
+        assertFalse(isEmpty(image));
+    }
+    
     private void setupRasterDimension(String metadata, DimensionPresentation presentation, String units, String unitSymbol) {
         CoverageInfo info = getCatalog().getCoverageByName(WATTEMP.getLocalPart());
         DimensionInfo di = new DimensionInfoImpl();
