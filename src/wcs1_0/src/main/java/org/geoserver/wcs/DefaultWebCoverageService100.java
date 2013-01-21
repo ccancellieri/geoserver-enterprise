@@ -404,6 +404,7 @@ public class DefaultWebCoverageService100 implements WebCoverageService100 {
                     String axisName = axis.getName();
                     if (axisName.regionMatches(true, 0, "dim_", 0, 4)) {
                         Object dimInfo = meta.getMetadata().get(ResourceInfo.CUSTOM_DIMENSION_PREFIX + axisName);
+                        axisName = axisName.toUpperCase(); // using uppercase with imagemosaic
                         if (dimInfo instanceof DimensionInfo && dimensions.hasDomain(axisName)) {
                             int valueCount = axis.getSingleValue().size();
                             if (valueCount > 0) {
