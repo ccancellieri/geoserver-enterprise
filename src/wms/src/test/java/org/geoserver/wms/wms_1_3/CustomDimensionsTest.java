@@ -7,6 +7,7 @@ package org.geoserver.wms.wms_1_3;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.io.File;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -88,14 +89,14 @@ public class CustomDimensionsTest extends WMSTestSupport {
     public void testCapabilities() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, null, null);
         Document dom = dom(get(CAPABILITIES_REQUEST), false);
-        // print(dom);
+//         print(dom);
         
         // check dimension has been declared
         assertXpathEvaluatesTo("1", "count(//wms:Layer/wms:Dimension)", dom);        
         assertXpathEvaluatesTo(DIMENSION_NAME, "//wms:Layer/wms:Dimension/@name", dom);
         
         // check we have the dimension values
-        assertXpathEvaluatesTo("CustomDimValueA,CustomDimValueB", "//wms:Layer/wms:Dimension", dom);
+        assertXpathEvaluatesTo("CustomDimValueA,CustomDimValueB,CustomDimValueC", "//wms:Layer/wms:Dimension", dom);
         assertXpathEvaluatesTo("CustomDimValueA", "//wms:Layer/wms:Dimension/@default", dom);
     }
     
@@ -109,7 +110,7 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertXpathEvaluatesTo(DIMENSION_NAME, "//wms:Layer/wms:Dimension/@name", dom);
         
         // check we have the dimension values
-        assertXpathEvaluatesTo("CustomDimValueA,CustomDimValueB", "//wms:Layer/wms:Dimension", dom);
+        assertXpathEvaluatesTo("CustomDimValueA,CustomDimValueB,CustomDimValueC", "//wms:Layer/wms:Dimension", dom);
         assertXpathEvaluatesTo("nano meters", "//wms:Layer/wms:Dimension/@units", dom);
         assertXpathEvaluatesTo("nm", "//wms:Layer/wms:Dimension/@unitSymbol", dom);
     }
@@ -126,12 +127,13 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertTrue(isEmpty(image));
         
         // check that we get data when requesting a correct value for custom dimension
-        response = getAsServletResponse("wms?bbox=" + BBOX + "&styles="
-                + "&layers=" + LAYERS + "&Format=image/png" + "&request=GetMap" + "&width=550"
+        response = getAsServletResponse("wms?bbox=" + BBOX + "&styles=raster"
+                + "&layers=" + LAYERS + "&Format=image/tiff" + "&request=GetMap" + "&width=550"
                 + "&height=250" + "&srs=EPSG:4326" + "&VALIDATESCHEMA=true"
-                + "&DIM_" + DIMENSION_NAME + "=CustomDimValueB");
+                + "&DIM_" + DIMENSION_NAME + "=CustomDimValueB,CustomDimValueC,CustomDimValueA");
         image = ImageIO.read(getBinaryInputStream(response));
         assertFalse(isEmpty(image));
+        assertTrue(image.getSampleModel().getNumBands()==3);
     }
     
     private void setupRasterDimension(String metadata, DimensionPresentation presentation, String units, String unitSymbol) {
