@@ -18,7 +18,6 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
 import junit.framework.Test;
-
 import org.apache.xerces.dom.DOMInputImpl;
 import org.custommonkey.xmlunit.NamespaceContext;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
@@ -30,6 +29,7 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.config.GeoServerInfo;
 import org.geoserver.data.test.MockData;
 import org.geoserver.wms.WMSTestSupport;
+import org.junit.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.ls.LSInput;
 import org.w3c.dom.ls.LSResourceResolver;
@@ -115,9 +115,24 @@ public class CapabilitiesSystemTest extends WMSTestSupport {
                     String systemId, String baseURI) {
                 if(namespaceURI.equals("http://www.w3.org/1999/xlink")) {
                     try {
+                        LSInput input = ((DOMImplementationLS)dom.getImplementation()).createLSInput();
                         URL xlink = getClass().getResource("/schemas/xlink/1999/xlink.xsd");
                         systemId = xlink.toURI().toASCIIString();
                         DOMInputImpl input = new DOMInputImpl(publicId, systemId, null);
+                        input.setPublicId(publicId);
+                        input.setSystemId(systemId);
+                        return input;
+                    } catch(Exception e) {
+                        return null;
+
+                    }
+                } else if(XML.NAMESPACE.equals(namespaceURI)) {
+                    try {
+                        LSInput input = ((DOMImplementationLS)dom.getImplementation()).createLSInput();
+                        URL xml = XML.class.getResource("xml.xsd");
+                        systemId = xml.toURI().toASCIIString();
+                        input.setPublicId(publicId);
+                        input.setSystemId(systemId);
                         return input;
                     } catch(Exception e) {
                         return null;
