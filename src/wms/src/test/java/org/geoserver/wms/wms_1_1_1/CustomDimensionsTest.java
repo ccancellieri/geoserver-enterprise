@@ -150,6 +150,7 @@ public class CustomDimensionsTest extends WMSTestSupport {
                 + "&DIM_" + DIMENSION_NAME.toLowerCase() + "=CustomDimValueB");
         BufferedImage image = ImageIO.read(getBinaryInputStream(response));
         assertFalse(isEmpty(image));
+        assertTrue(image.getSampleModel().getNumBands()==3);
     }
     
     @Test
