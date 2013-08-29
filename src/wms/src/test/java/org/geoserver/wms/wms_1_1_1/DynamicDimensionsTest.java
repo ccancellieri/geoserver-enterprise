@@ -4,7 +4,6 @@
  */
 package org.geoserver.wms.wms_1_1_1;
 
-import static junit.framework.Assert.*;
 import static org.custommonkey.xmlunit.XMLAssert.*;
 
 import java.awt.Color;
@@ -26,12 +25,8 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.impl.DimensionInfoImpl;
 import org.geoserver.config.GeoServerInfo;
 import org.geoserver.data.test.MockData;
-import org.geoserver.data.test.SystemTestData;
-import org.geoserver.data.test.SystemTestData.LayerProperty;
 import org.geoserver.wms.WMSInfo;
 import org.geoserver.wms.WMSTestSupport;
-import org.junit.After;
-import org.junit.Test;
 import org.w3c.dom.Document;
 
 import com.mockrunner.mock.web.MockHttpServletResponse;
@@ -51,15 +46,15 @@ public class DynamicDimensionsTest extends WMSTestSupport {
     private static final String LAYERS = "gs:watertemp";
 
     @Override
-    protected void onSetUp(SystemTestData testData) throws Exception {
-        super.onSetUp(testData);
+    protected void populateDataDirectory(MockData dataDirectory) throws Exception {
+        super.populateDataDirectory(dataDirectory);
         
         // add org.geoserver.catalog.testReader.CustomFormat coverage
         String styleName = "temperature";
-        testData.addStyle(styleName, "../temperature.sld", getClass(), getCatalog());
-        Map propertyMap = new HashMap();
-        propertyMap.put(LayerProperty.STYLE,"temperature");
-        testData.addRasterLayer(WATTEMP, "watertempDynamicDims.zip", null, propertyMap, SystemTestData.class, getCatalog());
+        dataDirectory.addStyle(styleName, MockData.class.getResource("../temperature.sld"));
+        
+        dataDirectory.addCoverageFromZip(WATTEMP, MockData.class.getResource("watertempDynamicDims.zip"), "zip", styleName);
+        
         
         GeoServerInfo global = getGeoServer().getGlobal();
         global.getSettings().setProxyBaseUrl("src/test/resources/geoserver");
@@ -77,15 +72,13 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         XMLUnit.setXpathNamespaceContext(new SimpleNamespaceContext(namespaces));
     }
     
-    @After
-    public void removeRasterDimensions() {
+    @Override
+    protected void tearDownInternal() throws Exception {
         CoverageInfo info = getCatalog().getCoverageByName(WATTEMP.getLocalPart());
         info.getMetadata().remove(ResourceInfo.CUSTOM_DIMENSION_PREFIX + DIMENSION_NAME);
         getCatalog().save(info);
     }
 
-
-    @Test
     public void testCapabilitiesNoDimension() throws Exception {
         Document dom = dom(get(CAPABILITIES_REQUEST), false);
         // print(dom);
@@ -95,7 +88,6 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         assertXpathEvaluatesTo("0", "count(//Layer/Dimension)", dom);
     }
     
-    @Test
     public void testCapabilities() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, null, null);
         Document dom = dom(get(CAPABILITIES_REQUEST), false);
@@ -110,7 +102,6 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         assertXpathEvaluatesTo("020,100", "//Layer/Extent", dom);
     }
     
-    @Test
     public void testGetMapInvalidValue() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         
@@ -124,7 +115,6 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         assertTrue(isEmpty(image));
     }
     
-    @Test
     public void testGetMapDefaultValue() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         
@@ -139,7 +129,6 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         assertPixel(image, 337, 177, new Color(255,197,197));
     }
     
-    @Test
     public void testGetMapValidValue() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         
@@ -155,7 +144,6 @@ public class DynamicDimensionsTest extends WMSTestSupport {
         assertPixel(image, 337, 177, Color.BLACK);
     }
     
-    @Test
     public void testGetMapCaseInsensitiveKey() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         

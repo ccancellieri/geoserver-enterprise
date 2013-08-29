@@ -4,7 +4,6 @@
  */
 package org.geoserver.wcs;
 
-import static org.junit.Assert.*;
 
 import java.awt.image.BufferedImage;
 
@@ -17,9 +16,8 @@ import org.geoserver.catalog.DimensionPresentation;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.impl.DimensionInfoImpl;
 import org.geoserver.data.test.MockData;
-import org.geoserver.data.test.SystemTestData;
+import org.geoserver.data.test.TestData;
 import org.geoserver.wcs.test.CoverageTestSupport;
-import org.junit.Test;
 
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
@@ -33,16 +31,13 @@ public class DynamicDimensionsTest extends CoverageTestSupport {
     private static final String DIMENSION_NAME = "wavelength";
     private static final QName WATTEMP = new QName(MockData.DEFAULT_URI, "watertemp", MockData.DEFAULT_PREFIX);
 
-
-    @Override
-    protected void onSetUp(SystemTestData testData) throws Exception {
-        super.onSetUp(testData);
-        
-        testData.addRasterLayer(WATTEMP, "watertempDynamicDims.zip", null, null, SystemTestData.class, getCatalog());
+    protected void populateDataDirectory(MockData dataDirectory) throws Exception {
+        super.populateDataDirectory(dataDirectory);
+        dataDirectory.addCoverage(WATTEMP, TestData.class.getResource("watertempDynamicDims.zip"),
+                null, "raster");
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST);
     }
     
-    @Test
     public void testGetCoverageBadValue() throws Exception {
         // check that we get no data when requesting an incorrect value for custom dimension
         String request = getWaterTempRequest("bad_dimension_value");
@@ -51,7 +46,6 @@ public class DynamicDimensionsTest extends CoverageTestSupport {
         assertNull(image);
     }
     
-    @Test
     public void testGetCoverageGoodValue() throws Exception {
         // check that we get data when requesting a correct value for custom dimension
         String request = getWaterTempRequest("100");

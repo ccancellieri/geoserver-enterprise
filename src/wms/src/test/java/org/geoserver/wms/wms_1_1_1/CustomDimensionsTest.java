@@ -43,13 +43,13 @@ public class CustomDimensionsTest extends WMSTestSupport {
     
     @Override
     protected void populateDataDirectory(MockData dataDirectory) throws Exception {
-        
+        super.populateDataDirectory(dataDirectory);
         // add org.geoserver.catalog.testReader.CustomFormat coverage
         URL style = getClass().getResource("../temperature.sld");
         String styleName = "temperature";
         dataDirectory.addStyle(styleName, style);
-        dataDirectory.addCoverageFromZip(WATTEMP, TestData.class.getResource("custwatertemp.zip"),
-                        null, styleName);
+
+        dataDirectory.addCoverage(WATTEMP, TestData.class.getResource("custwatertemp.zip"),null, styleName);
     }
     
     @Override
@@ -139,7 +139,6 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertTrue(image.getSampleModel().getNumBands()==3);
     }
     
-    @Test
     public void testGetMapCaseInsesitiveKey() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         
