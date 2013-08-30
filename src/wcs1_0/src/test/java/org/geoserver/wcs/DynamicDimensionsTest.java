@@ -30,12 +30,18 @@ public class DynamicDimensionsTest extends CoverageTestSupport {
 
     private static final String DIMENSION_NAME = "wavelength";
     private static final QName WATTEMP = new QName(MockData.DEFAULT_URI, "watertemp", MockData.DEFAULT_PREFIX);
-
+    
+    @Override
+    protected void oneTimeSetUp() throws Exception {
+        super.oneTimeSetUp();
+        setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST);
+    }
+    
     protected void populateDataDirectory(MockData dataDirectory) throws Exception {
         super.populateDataDirectory(dataDirectory);
         dataDirectory.addCoverage(WATTEMP, TestData.class.getResource("watertempDynamicDims.zip"),
                 null, "raster");
-        setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST);
+        
     }
     
     public void testGetCoverageBadValue() throws Exception {
@@ -52,7 +58,7 @@ public class DynamicDimensionsTest extends CoverageTestSupport {
         MockHttpServletResponse response = postAsServletResponse("wcs", request);
         BufferedImage image = ImageIO.read(getBinaryInputStream(response));
         assertNotNull(image);
-        assertEquals("image/tiff", response.getContentType());
+        assertEquals("image/tiff;subtype=\"geotiff\"", response.getContentType());
     }
 
     private String getWaterTempRequest(String dimensionValue) {

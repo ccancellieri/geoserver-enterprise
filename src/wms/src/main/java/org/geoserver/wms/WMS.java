@@ -862,8 +862,8 @@ public class WMS implements ApplicationContextAware {
         if (rawKvpMap != null) {
             for (Map.Entry<String, String> kvp : rawKvpMap.entrySet()) {
                 String name = kvp.getKey();
-                if (name.regionMatches(true, 0, "dim_", 0, 4) &&
-                        dimensions.hasDomain(name)) {
+                if (name.regionMatches(true, 0, "dim_", 0, 4)) {
+                    name = name.substring(4);
                     name = caseInsensitiveLookup(customDomains, name);
                     if(name != null) {
                         // remove it so that we don't have to set the default value

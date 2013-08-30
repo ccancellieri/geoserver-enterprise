@@ -53,8 +53,10 @@ public class CustomDimensionsTest extends WMSTestSupport {
     }
     
     @Override
-    protected void setUpInternal() throws Exception {
-        super.setUpInternal();
+    protected void oneTimeSetUp() throws Exception {
+        super.oneTimeSetUp();
+//    protected void setUpInternal() throws Exception {
+//        super.setUpInternal();
         
         GeoServerInfo global = getGeoServer().getGlobal();
         global.getSettings().setProxyBaseUrl("src/test/resources/geoserver");
@@ -139,20 +141,6 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertTrue(image.getSampleModel().getNumBands()==3);
     }
     
-    public void testGetMapCaseInsesitiveKey() throws Exception {
-        setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
-        
-        // check that we get data when requesting a correct value for custom dimension
-        MockHttpServletResponse response = getAsServletResponse("wms?bbox=" + BBOX + "&styles="
-                + "&layers=" + LAYERS + "&Format=image/png" + "&request=GetMap" + "&width=550"
-                + "&height=250" + "&srs=EPSG:4326" + "&VALIDATESCHEMA=true"
-                + "&DIM_" + DIMENSION_NAME.toLowerCase() + "=CustomDimValueB");
-        BufferedImage image = ImageIO.read(getBinaryInputStream(response));
-        assertFalse(isEmpty(image));
-        assertTrue(image.getSampleModel().getNumBands()==3);
-    }
-    
-    @Test
     public void testGetMapCaseInsesitiveKey() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         
