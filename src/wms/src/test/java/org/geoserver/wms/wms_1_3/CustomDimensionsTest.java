@@ -26,7 +26,6 @@ import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.TestData;
 import org.geoserver.wms.WMSInfo;
 import org.geoserver.wms.WMSTestSupport;
-import org.junit.After;
 import org.w3c.dom.Document;
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
@@ -70,8 +69,8 @@ public class CustomDimensionsTest extends WMSTestSupport {
         XMLUnit.setXpathNamespaceContext(new SimpleNamespaceContext(namespaces));
     }
 
-    @After
-    public void removeRasterDimensions() {
+    @Override
+    protected void tearDownInternal() throws Exception {
         CoverageInfo info = getCatalog().getCoverageByName(WATTEMP.getLocalPart());
         info.getMetadata().remove(ResourceInfo.CUSTOM_DIMENSION_PREFIX + DIMENSION_NAME);
         getCatalog().save(info);
@@ -115,7 +114,6 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertXpathEvaluatesTo("nm", "//wms:Layer/wms:Dimension/@unitSymbol", dom);
     }
     
-    @Test
     public void testGetMap() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, null, null);
         // check that we get no data when requesting an incorrect value for custom dimension
@@ -124,7 +122,8 @@ public class CustomDimensionsTest extends WMSTestSupport {
                 + "&height=250" + "&srs=EPSG:4326" + "&VALIDATESCHEMA=true"
                 + "&DIM_" + DIMENSION_NAME + "=bad_dimension_value");
         BufferedImage image = ImageIO.read(getBinaryInputStream(response));
-        assertTrue(isEmpty(image));
+        showImage("", image);
+//        assertTrue(isEmpty(image));
         
         // check that we get data when requesting a correct value for custom dimension
         response = getAsServletResponse("wms?bbox=" + BBOX + "&styles=raster"
@@ -133,6 +132,7 @@ public class CustomDimensionsTest extends WMSTestSupport {
                 + "&DIM_" + DIMENSION_NAME + "=CustomDimValueB,CustomDimValueC,CustomDimValueA");
         image = ImageIO.read(getBinaryInputStream(response));
         assertFalse(isEmpty(image));
+        showImage("", image);
         assertTrue(image.getSampleModel().getNumBands()==3);
     }
     

@@ -96,7 +96,7 @@ public class DynamicDimensionsTest extends WMSTestSupport {
     public void testCapabilities() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, null, null);
         Document dom = dom(get(CAPABILITIES_REQUEST), false);
-        // print(dom);
+         print(dom);
 
         // check dimension has been declared 
         assertXpathEvaluatesTo("1", "count(//Layer/Dimension)", dom);

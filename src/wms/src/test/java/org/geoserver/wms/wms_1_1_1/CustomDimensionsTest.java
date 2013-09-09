@@ -7,6 +7,7 @@ package org.geoserver.wms.wms_1_1_1;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -24,7 +25,6 @@ import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.TestData;
 import org.geoserver.wms.WMSInfo;
 import org.geoserver.wms.WMSTestSupport;
-import org.junit.After;
 import org.w3c.dom.Document;
 import com.mockrunner.mock.web.MockHttpServletResponse;
 
@@ -68,8 +68,9 @@ public class CustomDimensionsTest extends WMSTestSupport {
         XMLUnit.setXpathNamespaceContext(new SimpleNamespaceContext(namespaces));
     }
     
-    @After
-    public void removeRasterDimensions() {
+    @Override
+    protected void tearDownInternal() throws Exception {
+        super.tearDownInternal();
         CoverageInfo info = getCatalog().getCoverageByName(WATTEMP.getLocalPart());
         info.getMetadata().remove(ResourceInfo.CUSTOM_DIMENSION_PREFIX + DIMENSION_NAME);
         getCatalog().save(info);
@@ -99,7 +100,6 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertXpathEvaluatesTo("CustomDimValueA,CustomDimValueB,CustomDimValueC", "//Layer/Extent", dom);
     }
     
-    @Test
     public void testCapabilitiesUnits() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         Document dom = dom(get(CAPABILITIES_REQUEST), false);
@@ -137,7 +137,6 @@ public class CustomDimensionsTest extends WMSTestSupport {
         assertTrue(image.getSampleModel().getNumBands()==3);
     }
     
-    @Test
     public void testGetMapCaseInsesitiveKey() throws Exception {
         setupRasterDimension(DIMENSION_NAME, DimensionPresentation.LIST, "nano meters", "nm");
         

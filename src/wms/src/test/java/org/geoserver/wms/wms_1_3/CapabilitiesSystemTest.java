@@ -4,7 +4,7 @@
  */
 package org.geoserver.wms.wms_1_3;
 
-import static org.custommonkey.xmlunit.XMLAssert.*;
+import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -18,7 +18,7 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
 import junit.framework.Test;
-import org.apache.xerces.dom.DOMInputImpl;
+
 import org.custommonkey.xmlunit.NamespaceContext;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
@@ -29,8 +29,9 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.config.GeoServerInfo;
 import org.geoserver.data.test.MockData;
 import org.geoserver.wms.WMSTestSupport;
-import org.junit.Test;
+import org.geotools.xml.XML;
 import org.w3c.dom.Document;
+import org.w3c.dom.ls.DOMImplementationLS;
 import org.w3c.dom.ls.LSInput;
 import org.w3c.dom.ls.LSResourceResolver;
 import org.xml.sax.SAXException;
@@ -105,7 +106,7 @@ public class CapabilitiesSystemTest extends WMSTestSupport {
      * As for section 7.2.4.1, ensures the GeCapabilities document validates against its schema
      */
     public void testValidateCapabilitiesXML() throws Exception {
-        Document dom = getAsDOM("ows?service=WMS&version=1.3.0&request=GetCapabilities");
+        final Document dom = getAsDOM("ows?service=WMS&version=1.3.0&request=GetCapabilities");
         SchemaFactory factory = SchemaFactory.newInstance("http://www.w3.org/2001/XMLSchema");
         URL schemaLocation = getClass().getResource(
                 "/schemas/wms/1.3.0/capabilities_1_3_0.xsd");
@@ -118,7 +119,7 @@ public class CapabilitiesSystemTest extends WMSTestSupport {
                         LSInput input = ((DOMImplementationLS)dom.getImplementation()).createLSInput();
                         URL xlink = getClass().getResource("/schemas/xlink/1999/xlink.xsd");
                         systemId = xlink.toURI().toASCIIString();
-                        DOMInputImpl input = new DOMInputImpl(publicId, systemId, null);
+//                        DOMInputImpl input = new DOMInputImpl(publicId, systemId, null);
                         input.setPublicId(publicId);
                         input.setSystemId(systemId);
                         return input;

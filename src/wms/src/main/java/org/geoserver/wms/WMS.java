@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
@@ -860,9 +861,9 @@ public class WMS implements ApplicationContextAware {
         List<String> customDomains = new ArrayList(dimensions.getCustomDomains());
         if (rawKvpMap != null) {
             for (Map.Entry<String, String> kvp : rawKvpMap.entrySet()) {
-                final String name = kvp.getKey();
-                if (name.regionMatches(true, 0, "dim_", 0, 4) &&
-                        dimensions.hasDomain(name)) {
+                String name = kvp.getKey();
+                if (name.regionMatches(true, 0, "dim_", 0, 4)) {
+                    name = name.substring(4);
                     name = caseInsensitiveLookup(customDomains, name);
                     if(name != null) {
                         // remove it so that we don't have to set the default value

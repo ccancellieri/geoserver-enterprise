@@ -66,7 +66,7 @@ public abstract class WMSTestSupport extends GeoServerTestSupport {
 
     protected static final int SHOW_TIMEOUT = 2000;
 
-    protected static final boolean INTERACTIVE = false;
+    protected static final boolean INTERACTIVE = true;
 
     protected static final Color BG_COLOR = Color.white;
 

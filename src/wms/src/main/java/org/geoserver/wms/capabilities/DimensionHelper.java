@@ -7,19 +7,18 @@ package org.geoserver.wms.capabilities;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TimeZone;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.CoverageStoreInfo;
@@ -88,7 +87,7 @@ abstract class DimensionHelper {
         if (mode == Mode.WMS11) {
             String elevUnits = hasElevation ? elevInfo.getUnits() : "";
             String elevUnitSymbol = hasElevation ? elevInfo.getUnitSymbol() : "";
-            declareWMS11Dimensions(hasTime, hasElevation, elevUnits, elevUnitSymbol);
+            declareWMS11Dimensions(hasTime, hasElevation, elevUnits, elevUnitSymbol, null);
         }
 
         // Time dimension
@@ -158,10 +157,6 @@ abstract class DimensionHelper {
         if (!hasTime && !hasElevation && !hasCustomDimensions) {
             return;
         }
-        
-        if (cvInfo == null)
-            throw new ServiceException("Unable to acquire coverage resource for layer: "
-                    + layer.getName());
 
         Catalog catalog = cvInfo.getCatalog();
         if (catalog == null)
@@ -201,7 +196,7 @@ abstract class DimensionHelper {
         if (mode == Mode.WMS11) {
             String elevUnits = hasElevation ? elevInfo.getUnits() : "";
             String elevUnitSymbol = hasElevation ? elevInfo.getUnitSymbol() : "";
-            declareWMS11Dimensions(hasTime, hasElevation, elevUnits, elevUnitSymbol);
+            declareWMS11Dimensions(hasTime, hasElevation, elevUnits, elevUnitSymbol, null);
         }
         
 
