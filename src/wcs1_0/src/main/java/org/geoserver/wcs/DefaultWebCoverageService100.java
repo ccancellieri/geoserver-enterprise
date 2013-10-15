@@ -5,6 +5,7 @@
 package org.geoserver.wcs;
 
 import static org.vfny.geoserver.wcs.WcsException.WcsExceptionCode.InvalidParameterValue;
+
 import java.awt.Rectangle;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -15,7 +16,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.media.jai.Interpolation;
+
 import net.opengis.gml.CodeType;
 import net.opengis.gml.DirectPositionType;
 import net.opengis.gml.RectifiedGridType;
@@ -34,6 +37,7 @@ import net.opengis.wcs10.SpatialSubsetType;
 import net.opengis.wcs10.TimePeriodType;
 import net.opengis.wcs10.TimeSequenceType;
 import net.opengis.wcs10.TypedLiteralType;
+
 import org.eclipse.emf.common.util.EList;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
@@ -49,8 +53,8 @@ import org.geotools.coverage.grid.GeneralGridGeometry;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.coverage.grid.GridGeometry2D;
-import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.parameter.DefaultParameterDescriptor;
 import org.geotools.referencing.CRS;
@@ -204,7 +208,7 @@ public class DefaultWebCoverageService100 implements WebCoverageService100 {
             // GRAB A READER
             //
             // grab the reader using the default params
-            final AbstractGridCoverage2DReader reader = (AbstractGridCoverage2DReader) meta
+            final GridCoverage2DReader reader = (GridCoverage2DReader) meta
                     .getGridCoverageReader(null, WCSUtils.getReaderHints(wcs));
             if (reader == null) {
                 // cannot instantiate a reader, we should return an empty array

@@ -123,7 +123,7 @@ public class DimensionsVectorCapabilitiesTest extends WMSDimensionsTestSupport {
         assertXpathEvaluatesTo("1", "count(//Layer/Extent)", dom);
         assertXpathEvaluatesTo("elevation", "//Layer/Extent/@name", dom);
         assertXpathEvaluatesTo("0.0", "//Layer/Extent/@default", dom);
-        assertXpathEvaluatesTo("0.0/3.0/3.0", "//Layer/Extent", dom);
+        assertXpathEvaluatesTo("0.0/3.0/0", "//Layer/Extent", dom);
     }
     
     public void testElevationDiscreteNoResolution() throws Exception {
@@ -196,7 +196,7 @@ public class DimensionsVectorCapabilitiesTest extends WMSDimensionsTestSupport {
         assertXpathEvaluatesTo("1", "count(//Layer/Extent)", dom);
         assertXpathEvaluatesTo("time", "//Layer/Extent/@name", dom);
         assertXpathEvaluatesTo("current", "//Layer/Extent/@default", dom);
-        assertXpathEvaluatesTo("2011-05-01T00:00:00.000Z/2011-05-04T00:00:00.000Z/P3D", "//Layer/Extent", dom);
+        assertXpathEvaluatesTo("2011-05-01T00:00:00.000Z/2011-05-04T00:00:00.000Z/PT1S", "//Layer/Extent", dom);
     }
     
     public void testTimeResolution() throws Exception {
